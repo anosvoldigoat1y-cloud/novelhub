@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+.env.local
+.env.*.local
+.env.production.local
+
+# Misc
+.DS_Store
+*.pem
+*.log
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+.fleet/
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+
+# Generated files
+.generated/
+
+# IDE
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+
+# OS
+Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# Cache
+.cache/
+.eslintcache
+
+# Turbo
+.turbo/
