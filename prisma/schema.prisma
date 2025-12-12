@@ -1,0 +1,252 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and profile management
+model User {
+  id                String            @id @default(cuid())
+  email             String            @unique
+  username          String            @unique
+  passwordHash      String
+  firstName         String?
+  lastName          String?
+  avatar            String?
+  bio               String?
+  isEmailVerified   Boolean           @default(false)
+  isActive          Boolean           @default(true)
+  role              UserRole          @default(USER)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Relations
+  novels            Novel[]
+  chapters          Chapter[]
+  comments          Comment[]
+  ratings           Rating[]
+  activityLogs      ActivityLog[]
+  favorites         Favorite[]
+
+  @@index([email])
+  @@index([username])
+}
+
+// Novel model for storing novel information
+model Novel {
+  id                String            @id @default(cuid())
+  title             String
+  slug              String            @unique
+  description       String?
+  coverImage        String?
+  author            String
+  authorId          String?           // External author ID if scraped
+  genre             String[]
+  status            NovelStatus       @default(ONGOING)
+  source            String            @default("original")
+  sourceUrl         String?
+  rating            Float             @default(0)
+  ratingCount       Int               @default(0)
+  views             Int               @default(0)
+  favorites         Int               @default(0)
+  createdById       String
+  createdBy         User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  chapters          Chapter[]
+  comments          Comment[]
+  ratings           Rating[]
+  favoredBy         Favorite[]
+
+  @@index([createdById])
+  @@index([slug])
+  @@index([status])
+  @@fulltext([title, description])
+}
+
+// Chapter model for novel chapters
+model Chapter {
+  id                String            @id @default(cuid())
+  novelId           String
+  novel             Novel             @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterNumber     Int
+  title             String
+  content           String
+  contentPlain      String?           // Plain text version for search
+  wordCount         Int               @default(0)
+  authorNote        String?
+  createdById       String
+  createdBy         User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  views             Int               @default(0)
+  likes             Int               @default(0)
+  isPublished       Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  comments          Comment[]
+  ratings           Rating[]
+
+  @@unique([novelId, chapterNumber])
+  @@index([novelId])
+  @@index([createdById])
+  @@index([isPublished])
+}
+
+// Comment model for discussions on chapters
+model Comment {
+  id                String            @id @default(cuid())
+  content           String
+  novelId           String
+  novel             Novel             @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterId         String?
+  chapter           Chapter?          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentCommentId   String?
+  parentComment     Comment?          @relation("CommentToComment", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies           Comment[]         @relation("CommentToComment")
+  likes             Int               @default(0)
+  isApproved        Boolean           @default(true)
+  isEdited          Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([userId])
+  @@index([parentCommentId])
+  @@index([createdAt])
+}
+
+// Rating model for user ratings on novels and chapters
+model Rating {
+  id                String            @id @default(cuid())
+  score             Int               // 1-5 rating
+  review            String?
+  novelId           String
+  novel             Novel             @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapterId         String?
+  chapter           Chapter?          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  helpful           Int               @default(0)
+  unhelpful         Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([novelId, userId])
+  @@index([novelId])
+  @@index([chapterId])
+  @@index([userId])
+  @@index([score])
+}
+
+// Favorite model for tracking user favorite novels
+model Favorite {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novelId           String
+  novel             Novel             @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  addedAt           DateTime          @default(now())
+
+  @@unique([userId, novelId])
+  @@index([userId])
+  @@index([novelId])
+  @@index([addedAt])
+}
+
+// ScraperLog model for tracking web scraper activities
+model ScraperLog {
+  id                String            @id @default(cuid())
+  source            String            // e.g., "wattpad", "lightnovel.org"
+  sourceUrl         String
+  status            ScraperStatus     @default(PENDING)
+  novelId           String?           // Reference to created novel if successful
+  chapterId         String?           // Reference to created chapter if successful
+  itemsProcessed    Int               @default(0)
+  itemsSuccessful   Int               @default(0)
+  itemsFailed       Int               @default(0)
+  errorMessage      String?
+  startedAt         DateTime          @default(now())
+  completedAt       DateTime?
+  duration          Int?              // Duration in seconds
+  metadata          Json?             // Additional metadata
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([source])
+  @@index([status])
+  @@index([novelId])
+  @@index([startedAt])
+  @@index([createdAt])
+}
+
+// ActivityLog model for tracking user activities
+model ActivityLog {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action            ActivityAction
+  resourceType      String            // e.g., "novel", "chapter", "comment"
+  resourceId        String?           // ID of the resource being acted upon
+  description       String?
+  metadata          Json?             // Additional context data
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime          @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@index([resourceId])
+}
+
+// Enums
+enum UserRole {
+  USER
+  AUTHOR
+  MODERATOR
+  ADMIN
+}
+
+enum NovelStatus {
+  ONGOING
+  COMPLETED
+  ABANDONED
+  HIATUS
+  DRAFT
+}
+
+enum ScraperStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PAUSED
+}
+
+enum ActivityAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LIKE
+  COMMENT
+  RATE
+  FAVORITE
+  SHARE
+  LOGIN
+  LOGOUT
+  VIEW
+}
